@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administrador · Anexo 8</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--p:#173f63;--p2:#0f2f4c;--bg:#f4f7fa;--line:#d7dee7;--txt:#1f2937;--mut:#667085;--green:#16803a;--red:#b42318}*{box-sizing:border-box}body{margin:0;font-family:Arial,Segoe UI,sans-serif;background:var(--bg);color:var(--txt)}header{background:linear-gradient(135deg,var(--p2),var(--p));color:#fff;padding:22px 16px}.wrap{max-width:1200px;margin:auto}h1{margin:0 0 6px;font-size:25px}.lead{margin:0;opacity:.92}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 14px;box-shadow:0 2px 8px #0000000c}.login{max-width:520px;margin:28px auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{font-size:13px;font-weight:700;display:block;margin-bottom:6px}input{width:100%;height:42px;border:1px solid #cbd5df;border-radius:9px;padding:0 10px;font-size:14px}.full{grid-column:1/-1}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}button{border:0;border-radius:9px;padding:11px 15px;font-weight:700;cursor:pointer}.primary{background:var(--p);color:#fff}.green{background:var(--green);color:#fff}.ghost{background:#e9eef3;color:#344054}.danger{background:#fff0ee;color:var(--red);border:1px solid #f1c5bf}.msg{font-size:13px;margin-top:12px;color:var(--mut)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.toolbar input{max-width:380px}.count{font-weight:700;color:var(--p)}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;width:100%;min-width:1600px;font-size:12.5px}th{position:sticky;top:0;background:#eef2f6;text-align:left;padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}td{padding:8px 9px;border-bottom:1px solid #edf0f3;vertical-align:top}.hide{display:none}.small{font-size:12px;padding:6px 9px}@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.card{margin:12px 8px;padding:14px}}
+</style>
+</head><body>
+<header><div class="wrap"><h1>Panel Administrador · Anexo 8</h1><p class="lead">Consulta centralizada de las personas registradas en el formulario.</p></div></header>
+<div class="wrap">
+<section id="loginCard" class="card login">
+<h2>Acceso de RR. HH.</h2><p class="msg">El acceso está autorizado únicamente para la cuenta administradora configurada.</p>
+<div class="grid"><div class="full"><label>Correo administrador</label><input id="email" value="jefrinsanchez@gmail.com" readonly></div><div class="full"><label>Contraseña</label><input id="password" type="password" minlength="8" placeholder="Mínimo 8 caracteres"></div></div>
+<div class="actions"><button class="primary" id="loginBtn">Ingresar</button><button class="ghost" id="signupBtn">Crear / activar acceso</button></div><div class="msg" id="loginMsg"></div>
+</section>
+<section id="panel" class="card hide">
+<div class="toolbar"><input id="buscar" placeholder="Buscar por DNI, nombre, cargo, correo o residencia"><button class="ghost" id="refreshBtn">Actualizar</button><button class="green" id="exportBtn">Descargar Excel</button><button class="danger" id="logoutBtn">Cerrar sesión</button><span class="count" id="count">0 registros</span></div>
+<div class="tablewrap"><table><thead><tr><th>#</th><th>Fecha</th><th>DNI</th><th>Apellidos y nombres</th><th>Teléfono</th><th>Correo</th><th>Nacimiento</th><th>Residencia</th><th>Dirección</th><th>Grado</th><th>Especialidad / Cargo</th><th>Sexo</th><th>Brevete</th><th>Acción</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</section>
+</div>
+<script>
+const SUPABASE_URL='https://tnyvhotzfmsfyntwmsnu.supabase.co';
+const SUPABASE_KEY='sb_publishable_bGY7AP72hhrAkjGkItFzDA_IjXcNRTf';
+const ADMIN_EMAIL='jefrinsanchez@gmail.com';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let all=[];
+const $=id=>document.getElementById(id);
+function msg(t){$('loginMsg').textContent=t}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fullName(r){return [r.apellido_paterno,r.apellido_materno,r.nombres].filter(Boolean).join(' ')}
+async function showSession(){const {data:{session}}=await db.auth.getSession();if(session?.user?.email===ADMIN_EMAIL){$('loginCard').classList.add('hide');$('panel').classList.remove('hide');await load()}else{$('loginCard').classList.remove('hide');$('panel').classList.add('hide')}}
+$('loginBtn').onclick=async()=>{const p=$('password').value;if(p.length<8){msg('Ingrese una contraseña de al menos 8 caracteres.');return}msg('Ingresando...');const {error}=await db.auth.signInWithPassword({email:ADMIN_EMAIL,password:p});if(error){msg('No se pudo ingresar: '+error.message);return}msg('');await showSession()};
+$('signupBtn').onclick=async()=>{const p=$('password').value;if(p.length<8){msg('Primero escriba una contraseña de al menos 8 caracteres.');return}msg('Solicitando acceso...');const {data,error}=await db.auth.signUp({email:ADMIN_EMAIL,password:p,options:{emailRedirectTo:location.href.split('?')[0].split('#')[0]}});if(error){msg('No se pudo crear el acceso: '+error.message);return}if(data.session){msg('Acceso creado. Ingresando...');await showSession()}else msg('Revise su correo jefrinsanchez@gmail.com y confirme el mensaje de Supabase. Luego vuelva aquí e ingrese con su contraseña.')};
+$('logoutBtn').onclick=async()=>{await db.auth.signOut();await showSession()};
+$('refreshBtn').onclick=load;
+$('buscar').addEventListener('input',render);
+async function load(){const {data,error}=await db.from('anexo8_registros').select('*').order('created_at',{ascending:false});if(error){alert('No se pudieron cargar los registros: '+error.message);return}all=data||[];render()}
+function render(){const q=$('buscar').value.trim().toLowerCase();const rows=!q?all:all.filter(r=>JSON.stringify(r).toLowerCase().includes(q));$('count').textContent=rows.length+(rows.length===1?' registro':' registros');$('tbody').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(new Date(r.created_at).toLocaleString('es-PE'))}</td><td>${esc(r.dni)}</td><td>${esc(fullName(r))}</td><td>${esc(r.telefono)}</td><td>${esc(r.correo)}</td><td>${esc([r.distrito_nacimiento,r.provincia_nacimiento,r.departamento_nacimiento].filter(Boolean).join(' / '))}</td><td>${esc([r.distrito_residencia,r.provincia_residencia,r.departamento_residencia].filter(Boolean).join(' / '))}</td><td>${esc(r.direccion_actual)}</td><td>${esc(r.grado_instruccion)}</td><td>${esc(r.especialidad_cargo)}</td><td>${esc(r.sexo)}</td><td>${esc(r.brevete||'')}</td><td><button class="danger small" onclick="del(${r.id},'${esc(r.dni)}')">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="14">No hay registros.</td></tr>'}
+window.del=async(id,dni)=>{if(!confirm('¿Eliminar el registro del DNI '+dni+'?'))return;const {error}=await db.from('anexo8_registros').delete().eq('id',id);if(error){alert('No se pudo eliminar: '+error.message);return}await load()};
+$('exportBtn').onclick=()=>{if(!all.length){alert('No hay registros para descargar.');return}const data=all.map(r=>({'FECHA REGISTRO':r.fecha_registro,'NOMBRES':r.nombres,'APELLIDO PATERNO':r.apellido_paterno,'APELLIDO MATERNO':r.apellido_materno,'DNI':r.dni,'UBIGEO':r.ubigeo,'BREVETE':r.brevete,'FECHA NACIMIENTO':r.fecha_nacimiento,'DISTRITO NACIMIENTO':r.distrito_nacimiento,'PROVINCIA NACIMIENTO':r.provincia_nacimiento,'DEPARTAMENTO NACIMIENTO':r.departamento_nacimiento,'EDAD':r.edad,'ESTADO CIVIL':r.estado_civil,'TELEFONO':r.telefono,'CORREO':r.correo,'DIRECCION ACTUAL':r.direccion_actual,'DISTRITO RESIDENCIA':r.distrito_residencia,'PROVINCIA RESIDENCIA':r.provincia_residencia,'DEPARTAMENTO RESIDENCIA':r.departamento_residencia,'GRADO INSTRUCCION':r.grado_instruccion,'ESPECIALIDAD / CARGO':r.especialidad_cargo,'SEXO':r.sexo}));const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'REGISTRADOS');XLSX.writeFile(wb,'Anexo8_Personas_Registradas.xlsx')};
+db.auth.onAuthStateChange(()=>setTimeout(showSession,0));showSession();
+</script></body></html>
